@@ -4,3 +4,4 @@ jinja2>=3.0.0
 python-multipart>=0.0.9
 anthropic>=0.30.0
 aiofiles>=20.0.0
+a2wsgi>=0.10.0
