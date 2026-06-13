@@ -1,0 +1,930 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Offer 捕手 — AI 求职智能匹配体</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+SC:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'Noto Sans SC', 'sans-serif'],
+                    },
+                    animation: {
+                        'gradient': 'gradient 6s ease infinite',
+                        'float': 'float 3s ease-in-out infinite',
+                        'pulse-soft': 'pulseSoft 2s ease-in-out infinite',
+                        'slide-up': 'slideUp 0.5s ease-out',
+                        'fade-in': 'fadeIn 0.6s ease-out',
+                        'bounce-in': 'bounceIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55)',
+                        'shimmer': 'shimmer 2s infinite',
+                    },
+                    keyframes: {
+                        gradient: {
+                            '0%, 100%': { backgroundPosition: '0% 50%' },
+                            '50%': { backgroundPosition: '100% 50%' },
+                        },
+                        float: {
+                            '0%, 100%': { transform: 'translateY(0px)' },
+                            '50%': { transform: 'translateY(-10px)' },
+                        },
+                        pulseSoft: {
+                            '0%, 100%': { opacity: '1' },
+                            '50%': { opacity: '0.7' },
+                        },
+                        slideUp: {
+                            '0%': { transform: 'translateY(30px)', opacity: '0' },
+                            '100%': { transform: 'translateY(0)', opacity: '1' },
+                        },
+                        fadeIn: {
+                            '0%': { opacity: '0' },
+                            '100%': { opacity: '1' },
+                        },
+                        bounceIn: {
+                            '0%': { transform: 'scale(0.3)', opacity: '0' },
+                            '50%': { transform: 'scale(1.05)' },
+                            '70%': { transform: 'scale(0.9)' },
+                            '100%': { transform: 'scale(1)', opacity: '1' },
+                        },
+                        shimmer: {
+                            '0%': { backgroundPosition: '-200% 0' },
+                            '100%': { backgroundPosition: '200% 0' },
+                        },
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        * { box-sizing: border-box; }
+        body { background: #f0f2f5; min-height: 100vh; }
+
+        /* Hero 渐变背景 */
+        .hero-gradient {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .hero-pattern {
+            background-image:
+                radial-gradient(circle at 20% 50%, rgba(255,255,255,0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 50%, rgba(255,255,255,0.08) 0%, transparent 50%),
+                radial-gradient(circle at 50% 80%, rgba(255,255,255,0.05) 0%, transparent 50%);
+        }
+
+        /* 卡片 */
+        .card {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+            transition: all 0.3s ease;
+        }
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08), 0 8px 32px rgba(102, 126, 234, 0.12);
+        }
+
+        /* Glass card */
+        .glass-card {
+            background: rgba(255,255,255,0.85);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            border: 1px solid rgba(255,255,255,0.6);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.08);
+        }
+
+        /* 标签页 */
+        .tab-btn {
+            padding: 12px 24px;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            border: none;
+            background: transparent;
+            color: #64748b;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+        .tab-btn.active {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+        .tab-btn:not(.active):hover {
+            background: #f1f5f9;
+            color: #334155;
+        }
+
+        /* 分数圆环 */
+        .score-ring {
+            width: 80px; height: 80px;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 800; font-size: 24px;
+            position: relative;
+        }
+        .score-high { background: conic-gradient(#10b981 var(--score), #e5e7eb 0); }
+        .score-mid { background: conic-gradient(#f59e0b var(--score), #e5e7eb 0); }
+        .score-low { background: conic-gradient(#ef4444 var(--score), #e5e7eb 0); }
+        .score-inner {
+            width: 64px; height: 64px;
+            background: white; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+        }
+
+        /* 文本域 */
+        textarea {
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 16px;
+            font-size: 15px;
+            line-height: 1.6;
+            transition: all 0.3s ease;
+            resize: vertical;
+            font-family: inherit;
+        }
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+        }
+
+        /* 按钮 */
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 14px 32px;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 25px rgba(102, 126, 234, 0.45);
+        }
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* 滚动条 */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        /* 骨架屏 */
+        .skeleton {
+            background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+            background-size: 200% 100%;
+            animation: shimmer 2s infinite;
+            border-radius: 8px;
+        }
+
+        /* 加载动画 */
+        .loader {
+            width: 48px; height: 48px;
+            border: 4px solid #e2e8f0;
+            border-top-color: #667eea;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            top: 24px; right: 24px;
+            padding: 16px 24px;
+            border-radius: 12px;
+            color: white;
+            font-weight: 600;
+            z-index: 9999;
+            animation: slideIn 0.3s ease-out;
+        }
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        /* 岗位卡片hover效果 */
+        .job-card {
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+        }
+        .job-card:hover {
+            border-color: #667eea;
+        }
+        .job-card.selected {
+            border-color: #667eea;
+            background: #f5f3ff;
+        }
+
+        /* 匹配结果动画 */
+        .result-enter {
+            animation: slideUp 0.5s ease-out forwards;
+        }
+    </style>
+</head>
+<body class="font-sans text-gray-800">
+
+<!-- Toast 容器 -->
+<div id="toast" class="toast hidden"></div>
+
+<!-- ====== Hero 区域 ====== -->
+<header class="hero-gradient hero-pattern text-white relative overflow-hidden">
+    <div class="absolute inset-0 opacity-10">
+        <div class="absolute top-10 left-10 w-72 h-72 bg-white rounded-full blur-3xl"></div>
+        <div class="absolute bottom-10 right-10 w-96 h-96 bg-purple-300 rounded-full blur-3xl"></div>
+    </div>
+    <div class="max-w-5xl mx-auto px-6 py-12 relative z-10">
+        <div class="flex items-center gap-4 mb-4">
+            <div class="w-14 h-14 bg-white/20 backdrop-blur rounded-2xl flex items-center justify-center text-3xl animate-float">
+                🎯
+            </div>
+            <div>
+                <h1 class="text-4xl font-black tracking-tight">Offer 捕手</h1>
+                <p class="text-white/70 text-sm font-medium">AI 求职智能匹配体</p>
+            </div>
+        </div>
+        <p class="text-xl text-white/90 max-w-2xl font-medium leading-relaxed">
+            上传简历，AI 秒级分析，精准匹配最适合你的岗位，并给出专业简历优化建议。<br>
+            <span class="text-white/60 text-base">让每一次投递都命中靶心 🎯</span>
+        </p>
+        <div class="flex gap-4 mt-6 text-sm">
+            <span class="bg-white/20 backdrop-blur px-4 py-2 rounded-full font-medium">
+                🤖 Claude AI 驱动
+            </span>
+            <span class="bg-white/20 backdrop-blur px-4 py-2 rounded-full font-medium">
+                📊 12大厂真实岗位
+            </span>
+            <span class="bg-white/20 backdrop-blur px-4 py-2 rounded-full font-medium">
+                ⚡ 秒级智能匹配
+            </span>
+        </div>
+    </div>
+</header>
+
+<!-- ====== 主内容区 ====== -->
+<main class="max-w-6xl mx-auto px-6 -mt-6 relative z-20 pb-16">
+    <!-- Tab 导航 -->
+    <div class="glass-card p-2 flex flex-wrap gap-1 mb-6 justify-center" id="tab-nav">
+        <button class="tab-btn active" data-tab="tab-resume">
+            <i class="fas fa-file-alt mr-2"></i>📝 上传简历
+        </button>
+        <button class="tab-btn" data-tab="tab-jobs">
+            <i class="fas fa-search mr-2"></i>🔍 岗位浏览
+        </button>
+        <button class="tab-btn" data-tab="tab-match">
+            <i class="fas fa-bullseye mr-2"></i>🎯 智能匹配
+        </button>
+        <button class="tab-btn" data-tab="tab-optimize">
+            <i class="fas fa-wand-magic-sparkles mr-2"></i>✨ 简历优化
+        </button>
+    </div>
+
+    <!-- ===== Tab 1: 上传简历 ===== -->
+    <div id="tab-resume" class="tab-content">
+        <div class="card p-8">
+            <div class="flex items-center gap-4 mb-6">
+                <div class="w-12 h-12 bg-gradient-to-br from-purple-100 to-purple-200 rounded-xl flex items-center justify-center text-2xl">📝</div>
+                <div>
+                    <h2 class="text-2xl font-bold">上传你的简历</h2>
+                    <p class="text-gray-500 text-sm">支持粘贴文本或上传 TXT 文件</p>
+                </div>
+            </div>
+
+            <div class="flex gap-4 mb-4">
+                <button onclick="loadDemoResume('ai')" class="px-4 py-2 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-lg text-sm font-medium transition">
+                    <i class="fas fa-robot mr-1"></i> 加载AI方向Demo简历
+                </button>
+                <button onclick="loadDemoResume('backend')" class="px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg text-sm font-medium transition">
+                    <i class="fas fa-server mr-1"></i> 加载后端方向Demo简历
+                </button>
+                <button onclick="loadDemoResume('product')" class="px-4 py-2 bg-green-50 hover:bg-green-100 text-green-700 rounded-lg text-sm font-medium transition">
+                    <i class="fas fa-lightbulb mr-1"></i> 加载产品方向Demo简历
+                </button>
+            </div>
+
+            <textarea id="resume-input"
+                class="w-full h-64"
+                placeholder="在此粘贴你的简历文本...&#10;&#10;例如：&#10;姓名：张同学&#10;学校：XX大学 计算机科学与技术 硕士 2026届&#10;技能：Python, PyTorch, FastAPI, Docker, SQL&#10;实习经历：在XX公司担任后端开发实习生，负责......&#10;项目经历：基于LLM的智能问答系统，使用RAG架构......"></textarea>
+
+            <div class="flex items-center gap-4 mt-4">
+                <span class="text-gray-400 text-sm">或</span>
+                <label class="cursor-pointer px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium transition">
+                    <i class="fas fa-upload mr-1"></i> 上传 TXT 文件
+                    <input type="file" id="file-input" accept=".txt,.md" class="hidden" onchange="uploadFile()">
+                </label>
+                <span id="file-name" class="text-sm text-gray-400"></span>
+            </div>
+
+            <div class="flex gap-3 mt-6">
+                <button onclick="extractSkills()" class="btn-primary bg-gradient-to-r from-purple-500 to-pink-500">
+                    <i class="fas fa-magnifying-glass mr-2"></i>AI 解析简历
+                </button>
+                <button onclick="switchTab('tab-match'); matchAll()" class="btn-primary">
+                    <i class="fas fa-bolt mr-2"></i>一键匹配岗位
+                </button>
+            </div>
+
+            <!-- 技能提取结果 -->
+            <div id="extract-result" class="hidden mt-6 p-6 bg-gradient-to-br from-purple-50 to-blue-50 rounded-2xl animate-fade-in">
+                <h3 class="font-bold text-lg mb-4">🤖 AI 解析结果</h3>
+                <div id="extract-content"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== Tab 2: 岗位浏览 ===== -->
+    <div id="tab-jobs" class="tab-content hidden">
+        <div class="card p-8">
+            <div class="flex items-center justify-between mb-6">
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 bg-gradient-to-br from-blue-100 to-blue-200 rounded-xl flex items-center justify-center text-2xl">🔍</div>
+                    <div>
+                        <h2 class="text-2xl font-bold">热招岗位</h2>
+                        <p class="text-gray-500 text-sm">共 {{ jobs|length }} 个岗位，点击选择目标岗位进行匹配</p>
+                    </div>
+                </div>
+                <select id="job-filter" onchange="filterJobs()" class="px-4 py-2 border-2 border-gray-200 rounded-xl text-sm focus:border-purple-500 focus:outline-none">
+                    <option value="">全部公司</option>
+                    <option value="腾讯">腾讯</option>
+                    <option value="字节跳动">字节跳动</option>
+                    <option value="阿里巴巴">阿里巴巴</option>
+                    <option value="小红书">小红书</option>
+                    <option value="美团">美团</option>
+                    <option value="华为">华为</option>
+                    <option value="百度">百度</option>
+                    <option value="拼多多">拼多多</option>
+                    <option value="京东">京东</option>
+                    <option value="蔚来">蔚来</option>
+                    <option value="网易">网易</option>
+                </select>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="jobs-grid">
+                {% for job in jobs %}
+                <div class="card p-5 job-card" data-job-id="{{ job.id }}" data-company="{{ job.company }}" onclick="selectJob({{ job.id }})">
+                    <div class="flex items-center gap-3 mb-3">
+                        <div class="w-10 h-10 bg-gradient-to-br from-blue-100 to-purple-100 rounded-lg flex items-center justify-center text-lg font-bold text-purple-600">
+                            {{ job.company[0] }}
+                        </div>
+                        <div>
+                            <div class="font-bold text-sm text-gray-900">{{ job.company }}</div>
+                            <div class="text-xs text-gray-400">{{ job.location }}</div>
+                        </div>
+                        <span class="ml-auto text-xs px-2 py-1 bg-purple-50 text-purple-600 rounded-full font-medium">{{ job.salary }}</span>
+                    </div>
+                    <h3 class="font-semibold text-sm mb-2 line-clamp-2">{{ job.title }}</h3>
+                    <div class="flex flex-wrap gap-1 mb-3">
+                        {% for tag in job.tags[:4] %}
+                        <span class="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full">{{ tag }}</span>
+                        {% endfor %}
+                        {% if job.tags|length > 4 %}
+                        <span class="text-xs text-gray-400">+{{ job.tags|length - 4 }}</span>
+                        {% endif %}
+                    </div>
+                    <p class="text-xs text-gray-400 line-clamp-2">{{ job.desc[:80] }}...</p>
+                </div>
+                {% endfor %}
+            </div>
+
+            <div id="selected-job-detail" class="hidden mt-6 p-6 bg-gradient-to-br from-blue-50 to-purple-50 rounded-2xl animate-fade-in">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="font-bold text-lg">📋 岗位详情</h3>
+                    <button onclick="document.getElementById('selected-job-detail').classList.add('hidden')" class="text-gray-400 hover:text-gray-600">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div id="job-detail-content"></div>
+                <div class="flex gap-3 mt-4">
+                    <button onclick="switchTab('tab-optimize'); optimizeForSelected()" class="btn-primary text-sm">
+                        <i class="fas fa-wand-magic-sparkles mr-1"></i>针对此岗位优化简历
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== Tab 3: 智能匹配 ===== -->
+    <div id="tab-match" class="tab-content hidden">
+        <div class="card p-8">
+            <div class="flex items-center gap-4 mb-6">
+                <div class="w-12 h-12 bg-gradient-to-br from-green-100 to-green-200 rounded-xl flex items-center justify-center text-2xl">🎯</div>
+                <div>
+                    <h2 class="text-2xl font-bold">智能匹配结果</h2>
+                    <p class="text-gray-500 text-sm">AI 分析你的简历与每个岗位的匹配度</p>
+                </div>
+            </div>
+
+            <!-- 匹配前提示 -->
+            <div id="match-prompt" class="text-center py-12">
+                <div class="text-6xl mb-4">🎯</div>
+                <p class="text-gray-500 text-lg mb-4">先在「上传简历」中填写简历，然后点击下方按钮</p>
+                <button onclick="switchTab('tab-resume')" class="btn-primary">
+                    <i class="fas fa-arrow-left mr-2"></i>先去填写简历
+                </button>
+            </div>
+
+            <!-- 加载中 -->
+            <div id="match-loading" class="hidden text-center py-12">
+                <div class="loader mx-auto mb-4"></div>
+                <p class="text-gray-500">AI 正在分析你的简历，匹配 {{ jobs|length }} 个岗位...</p>
+            </div>
+
+            <!-- 匹配结果 -->
+            <div id="match-results" class="hidden">
+                <div id="match-overview" class="mb-6"></div>
+                <div id="match-cards" class="space-y-4"></div>
+            </div>
+
+            <div class="mt-6 text-center">
+                <button id="btn-match" onclick="matchAll()" class="btn-primary">
+                    <i class="fas fa-bolt mr-2"></i>开始智能匹配
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== Tab 4: 简历优化 ===== -->
+    <div id="tab-optimize" class="tab-content hidden">
+        <div class="card p-8">
+            <div class="flex items-center gap-4 mb-6">
+                <div class="w-12 h-12 bg-gradient-to-br from-orange-100 to-orange-200 rounded-xl flex items-center justify-center text-2xl">✨</div>
+                <div>
+                    <h2 class="text-2xl font-bold">简历优化建议</h2>
+                    <p class="text-gray-500 text-sm">AI 针对目标岗位给出具体优化方案</p>
+                </div>
+            </div>
+
+            <!-- 选择目标岗位 -->
+            <div class="mb-6">
+                <label class="text-sm font-semibold text-gray-700 mb-2 block">选择目标岗位：</label>
+                <select id="optimize-job-select" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:outline-none">
+                    <option value="">-- 选择一个岗位 --</option>
+                    {% for job in jobs %}
+                    <option value="{{ job.id }}">{{ job.company }} — {{ job.title }} ({{ job.location }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div id="optimize-prompt" class="text-center py-8">
+                <div class="text-5xl mb-4">✨</div>
+                <p class="text-gray-500">填写简历 + 选择目标岗位，然后点击下方按钮获取优化建议</p>
+            </div>
+
+            <div id="optimize-loading" class="hidden text-center py-8">
+                <div class="loader mx-auto mb-4"></div>
+                <p class="text-gray-500">AI 正在分析简历与岗位的差距，生成优化建议...</p>
+            </div>
+
+            <div id="optimize-results" class="hidden">
+                <div id="optimize-content"></div>
+            </div>
+
+            <div class="text-center mt-6">
+                <button onclick="optimizeResume()" class="btn-primary bg-gradient-to-r from-orange-400 to-pink-500">
+                    <i class="fas fa-wand-magic-sparkles mr-2"></i>获取优化建议
+                </button>
+            </div>
+        </div>
+    </div>
+</main>
+
+<!-- Footer -->
+<footer class="text-center py-8 text-gray-400 text-sm">
+    <p>🤖 Offer 捕手 · 由 Claude AI 驱动 · 2026</p>
+</footer>
+
+<script>
+// ===== 全局状态 =====
+let currentResume = '';
+let currentJobId = null;
+let matchData = null;
+
+// ===== Tab 切换 =====
+function switchTab(tabId) {
+    document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+    document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+    document.getElementById(tabId).classList.remove('hidden');
+    document.querySelector(`[data-tab="${tabId}"]`).classList.add('active');
+
+    // 自动填充
+    currentResume = document.getElementById('resume-input').value.trim();
+}
+
+// Tab 点击事件
+document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+});
+
+// ===== Demo 简历 =====
+function loadDemoResume(type) {
+    const demos = {
+        'ai': `姓名：张伟
+学校：北京大学 计算机科学与技术 硕士 2026届（GPA 3.8/4.0）
+技能：Python, PyTorch, TensorFlow, FastAPI, LangChain, ChromaDB, Docker, SQL, Linux
+实习经历：
+- 2025.06-2025.09 字节跳动AI Lab实习生：参与大模型Agent框架开发，基于LangChain实现多工具编排，DAU提升15%
+- 2025.01-2025.04 商汤科技算法实习生：负责多模态模型的推理优化，使用vLLM部署，延迟降低40%
+项目经历：
+- RAG智能问答系统：基于ChromaDB+LangChain，实现企业知识库问答，准确率92%
+- AI简历解析器：使用GPT-4+结构化提取，将非结构化简历转JSON，处理5000+份简历
+论文：ACL 2025 一篇（二作），关于LLM幻觉检测
+竞赛：Kaggle NLP竞赛 Top 5%
+英语：CET-6 580, 能流畅阅读英文论文`,
+
+        'backend': `姓名：李明
+学校：浙江大学 软件工程 本科 2026届（GPA 3.6/4.0）
+技能：Java, Go, Spring Boot, MySQL, Redis, Kafka, Docker, Kubernetes, Linux
+实习经历：
+- 2025.07-2025.10 阿里巴巴淘天集团后端实习生：参与双11大促核心交易链路开发，QPS峰值10w+，0故障
+- 2025.03-2025.06 网易云音乐后端实习生：负责用户推荐服务重构，Go重写Java服务，性能提升3倍
+项目经历：
+- 分布式秒杀系统：基于Redis+Lua脚本实现原子扣减，支持5000 QPS
+- 微服务RPC框架：自研基于Netty的RPC框架，支持负载均衡和熔断机制
+开源贡献：Apache Dubbo Contributor，提交5个PR
+英语：CET-6 520`,
+
+        'product': `姓名：王芳
+学校：复旦大学 市场营销 硕士 2026届（GPA 3.7/4.0）
+技能：用户研究, 数据分析(SQL/Excel/Python), 产品原型(Axure/Figma), PRD撰写, A/B实验
+实习经历：
+- 2025.06-2025.09 腾讯微信事业群产品实习生：参与视频号直播功能迭代，通过A/B实验将直播转化率提升12%
+- 2025.02-2025.05 小红书产品实习生：负责社区内容推荐策略优化，DAU增长8%
+项目经历：
+- 校园社交App产品设计：从0到1完成产品定位、用户调研、原型设计，获校内创业大赛二等奖
+- 电商用户画像分析：使用SQL分析100w+用户行为数据，输出增长策略报告
+校园经历：校学生会副主席，组织过2场500+人的校园活动
+英语：CET-6 600，雅思7.0`
+    };
+
+    document.getElementById('resume-input').value = demos[type] || demos['ai'];
+    showToast('✅ Demo简历已加载', 'success');
+}
+
+// ===== 文件上传 =====
+function uploadFile() {
+    const fileInput = document.getElementById('file-input');
+    const file = fileInput.files[0];
+    if (!file) return;
+
+    document.getElementById('file-name').textContent = `上传中: ${file.name}...`;
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    fetch('/api/upload-resume', { method: 'POST', body: formData })
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) {
+                showToast('❌ ' + data.error, 'error');
+                return;
+            }
+            document.getElementById('resume-input').value = data.text;
+            document.getElementById('file-name').textContent = `✅ ${data.filename} (${data.length}字)`;
+            currentResume = data.text;
+            showToast('✅ 文件上传成功', 'success');
+        })
+        .catch(e => {
+            showToast('❌ 上传失败: ' + e.message, 'error');
+        });
+}
+
+// ===== AI提取技能 =====
+function extractSkills() {
+    const resume = document.getElementById('resume-input').value.trim();
+    if (!resume || resume.length < 20) {
+        showToast('⚠️ 请先粘贴或上传简历（至少20字）', 'warning');
+        return;
+    }
+    currentResume = resume;
+
+    const resultDiv = document.getElementById('extract-result');
+    const contentDiv = document.getElementById('extract-content');
+    resultDiv.classList.remove('hidden');
+    contentDiv.innerHTML = '<div class="loader mx-auto"></div>';
+
+    const formData = new FormData();
+    formData.append('resume', resume);
+
+    fetch('/api/extract', { method: 'POST', body: formData })
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) { contentDiv.innerHTML = `<p class="text-red-500">${data.error}</p>`; return; }
+            contentDiv.innerHTML = `
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="bg-white rounded-xl p-4">
+                        <span class="text-xs text-gray-400 font-semibold">👤 基本信息</span>
+                        <p class="font-semibold mt-1">${data.name || '未识别'} · ${data.education?.level || ''} · ${data.education?.school || ''} · ${data.education?.major || ''}</p>
+                    </div>
+                    <div class="bg-white rounded-xl p-4">
+                        <span class="text-xs text-gray-400 font-semibold">🎯 目标方向</span>
+                        <p class="font-semibold mt-1">${data.target_role || '未识别'} · ${data.years_of_experience || 0}年经验</p>
+                    </div>
+                    <div class="bg-white rounded-xl p-4">
+                        <span class="text-xs text-gray-400 font-semibold">💪 核心技能</span>
+                        <div class="flex flex-wrap gap-1 mt-2">
+                            ${(data.skills || []).map(s => `<span class="px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">${s}</span>`).join('')}
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-xl p-4">
+                        <span class="text-xs text-gray-400 font-semibold">📊 优劣势</span>
+                        <p class="text-green-600 text-sm mt-1"><strong>优势：</strong>${(data.strengths || []).join('、')}</p>
+                        <p class="text-orange-600 text-sm mt-1"><strong>待提升：</strong>${(data.weaknesses || []).join('、')}</p>
+                    </div>
+                </div>
+            `;
+            showToast('✅ AI解析完成', 'success');
+        })
+        .catch(e => showToast('❌ 解析失败: ' + e.message, 'error'));
+}
+
+// ===== 岗位浏览 =====
+let selectedJobId = null;
+
+function selectJob(jobId) {
+    selectedJobId = jobId;
+    currentJobId = jobId;
+
+    // 高亮选中卡片
+    document.querySelectorAll('.job-card').forEach(c => c.classList.remove('selected'));
+    document.querySelector(`[data-job-id="${jobId}"]`).classList.add('selected');
+
+    // 显示详情
+    fetch(`/api/jobs/${jobId}`)
+        .then(r => r.json())
+        .then(job => {
+            document.getElementById('selected-job-detail').classList.remove('hidden');
+            document.getElementById('job-detail-content').innerHTML = `
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="w-14 h-14 bg-gradient-to-br from-blue-200 to-purple-200 rounded-xl flex items-center justify-center text-xl font-black text-purple-700">${job.company[0]}</div>
+                    <div>
+                        <h4 class="font-bold text-lg">${job.company} — ${job.title}</h4>
+                        <p class="text-sm text-gray-500">${job.department} · ${job.location} · <span class="text-purple-600 font-semibold">${job.salary}</span></p>
+                    </div>
+                </div>
+                <div class="flex flex-wrap gap-1 mb-4">
+                    ${job.tags.map(t => `<span class="px-3 py-1 bg-white rounded-full text-sm font-medium text-gray-700 shadow-sm">${t}</span>`).join('')}
+                </div>
+                <p class="text-gray-700 mb-3"><strong class="text-gray-900">📖 岗位描述：</strong>${job.desc}</p>
+                <div><strong class="text-gray-900">✅ 任职要求：</strong>
+                    <ul class="mt-2 space-y-1">
+                        ${job.requirements.map(r => `<li class="text-sm text-gray-600 flex items-center gap-2"><span class="text-green-500">✓</span> ${r}</li>`).join('')}
+                    </ul>
+                </div>
+            `;
+            // 更新优化页面的岗位选择
+            document.getElementById('optimize-job-select').value = jobId;
+        });
+}
+
+function filterJobs() {
+    const company = document.getElementById('job-filter').value;
+    document.querySelectorAll('.job-card').forEach(card => {
+        if (!company || card.dataset.company === company) {
+            card.style.display = '';
+        } else {
+            card.style.display = 'none';
+        }
+    });
+}
+
+function optimizeForSelected() {
+    if (selectedJobId) switchTab('tab-optimize');
+}
+
+// ===== 智能匹配 =====
+function matchAll() {
+    const resume = document.getElementById('resume-input').value.trim();
+    if (!resume || resume.length < 20) {
+        showToast('⚠️ 请先在"上传简历"中填写简历', 'warning');
+        switchTab('tab-resume');
+        return;
+    }
+    currentResume = resume;
+
+    switchTab('tab-match');
+    document.getElementById('match-prompt').classList.add('hidden');
+    document.getElementById('btn-match').classList.add('hidden');
+    document.getElementById('match-loading').classList.remove('hidden');
+    document.getElementById('match-results').classList.add('hidden');
+
+    const formData = new FormData();
+    formData.append('resume', resume);
+
+    fetch('/api/match', { method: 'POST', body: formData })
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) { showToast('❌ ' + data.error, 'error'); return; }
+            matchData = data;
+            renderMatchResults(data);
+            showToast('✅ 匹配完成！', 'success');
+        })
+        .catch(e => showToast('❌ 匹配失败: ' + e.message, 'error'));
+}
+
+function renderMatchResults(data) {
+    document.getElementById('match-loading').classList.add('hidden');
+    document.getElementById('match-results').classList.remove('hidden');
+
+    const matches = data.matches || [];
+    const sorted = matches.sort((a, b) => b.score - a.score);
+    const best = sorted[0];
+
+    // 总览
+    document.getElementById('match-overview').innerHTML = `
+        <div class="bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-2xl p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-white/70 text-sm font-medium">AI 综合建议</p>
+                    <p class="text-xl font-bold mt-1">${data.overall_advice || '请查看下方详细匹配结果'}</p>
+                    ${data.best_role ? `<p class="text-white/80 text-sm mt-2">🏆 最佳匹配方向：<strong>${data.best_role}</strong></p>` : ''}
+                </div>
+                <div class="text-right text-white/70 text-sm">
+                    <div class="text-3xl font-black text-white">${best?.score || '-'}</div>
+                    最高匹配分
+                </div>
+            </div>
+        </div>
+    `;
+
+    // 匹配卡片
+    document.getElementById('match-cards').innerHTML = sorted.map((m, i) => {
+        const scoreClass = m.score >= 80 ? 'score-high' : m.score >= 60 ? 'score-mid' : 'score-low';
+        const scoreColor = m.score >= 80 ? 'text-green-600' : m.score >= 60 ? 'text-yellow-600' : 'text-red-600';
+        const scoreBg = m.score >= 80 ? 'bg-green-50 border-green-200' : m.score >= 60 ? 'bg-yellow-50 border-yellow-200' : 'bg-red-50 border-red-200';
+        const badgeIcon = m.score >= 80 ? '🏆' : m.score >= 60 ? '👍' : '📚';
+        const badgeText = m.score >= 80 ? '强烈推荐' : m.score >= 60 ? '可以尝试' : '需要提升';
+
+        return `
+            <div class="card p-6 border-l-4 ${m.score >= 80 ? 'border-green-400' : m.score >= 60 ? 'border-yellow-400' : 'border-red-400'} result-enter" style="animation-delay: ${i * 0.1}s">
+                <div class="flex items-start gap-4">
+                    <div class="text-center flex-shrink-0">
+                        <div class="score-ring ${scoreClass}" style="--score: ${m.score * 3.6}deg">
+                            <div class="score-inner">
+                                <span class="${scoreColor}">${m.score}</span>
+                            </div>
+                        </div>
+                        <span class="text-xs ${scoreColor} font-bold mt-1 block">${badgeIcon} ${badgeText}</span>
+                    </div>
+                    <div class="flex-1">
+                        <h3 class="font-bold text-lg" onclick="selectJob(${m.job_id})" style="cursor:pointer">
+                            岗位 #${m.job_id} <span class="text-gray-400 text-sm font-normal">点击查看详情 →</span>
+                        </h3>
+                        <div class="${scoreBg} rounded-xl p-4 mt-3">
+                            <p class="text-sm font-semibold">🔍 技能匹配：<span class="font-normal">${m.skill_match}</span></p>
+                            <p class="text-sm font-semibold mt-1">📉 差距分析：<span class="font-normal">${m.gap_analysis}</span></p>
+                        </div>
+                        <div class="flex gap-2 mt-3">
+                            <div class="flex-1">
+                                <p class="text-xs text-gray-400 font-semibold mb-1">✅ 亮点</p>
+                                ${(m.highlights || []).map(h => `<p class="text-xs text-green-600">+ ${h}</p>`).join('')}
+                            </div>
+                            <div class="flex-1">
+                                <p class="text-xs text-gray-400 font-semibold mb-1">⚠️ 缺失</p>
+                                ${(m.missing || []).map(h => `<p class="text-xs text-orange-600">- ${h}</p>`).join('')}
+                            </div>
+                        </div>
+                        <button onclick="selectJob(${m.job_id}); switchTab('tab-optimize'); document.getElementById('optimize-job-select').value=${m.job_id}"
+                            class="mt-3 text-xs px-3 py-1 bg-purple-50 text-purple-600 rounded-lg hover:bg-purple-100 transition font-medium">
+                            ✨ 针对此岗位优化简历
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+// ===== 简历优化 =====
+function optimizeResume() {
+    const resume = document.getElementById('resume-input').value.trim();
+    const jobId = document.getElementById('optimize-job-select').value;
+
+    if (!resume || resume.length < 20) {
+        showToast('⚠️ 请先在"上传简历"中填写简历', 'warning');
+        switchTab('tab-resume');
+        return;
+    }
+    if (!jobId) {
+        showToast('⚠️ 请选择目标岗位', 'warning');
+        return;
+    }
+
+    currentResume = resume;
+    currentJobId = parseInt(jobId);
+
+    switchTab('tab-optimize');
+    document.getElementById('optimize-prompt').classList.add('hidden');
+    document.getElementById('optimize-loading').classList.remove('hidden');
+    document.getElementById('optimize-results').classList.add('hidden');
+
+    const formData = new FormData();
+    formData.append('resume', resume);
+    formData.append('job_id', jobId);
+
+    fetch('/api/optimize', { method: 'POST', body: formData })
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) { showToast('❌ ' + data.error, 'error'); return; }
+            renderOptimizeResults(data);
+            showToast('✅ 优化建议已生成', 'success');
+        })
+        .catch(e => showToast('❌ 优化失败: ' + e.message, 'error'));
+}
+
+function renderOptimizeResults(data) {
+    document.getElementById('optimize-loading').classList.add('hidden');
+    document.getElementById('optimize-results').classList.remove('hidden');
+
+    const scoreColor = data.match_score >= 80 ? 'text-green-600' : data.match_score >= 60 ? 'text-yellow-600' : 'text-red-600';
+
+    document.getElementById('optimize-content').innerHTML = `
+        <div class="bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-2xl p-6 mb-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-white/70 text-sm">当前匹配度</p>
+                    <div class="flex items-baseline gap-2">
+                        <span class="text-4xl font-black">${data.match_score}</span>
+                        <span class="text-white/60">/100</span>
+                    </div>
+                </div>
+                <div class="text-right text-white/80 text-sm max-w-md">
+                    <p>${data.overall_assessment}</p>
+                </div>
+            </div>
+        </div>
+
+        <h3 class="font-bold text-lg mb-4">📝 逐项优化建议</h3>
+        ${(data.optimizations || []).map((opt, i) => `
+            <div class="card p-5 mb-3 result-enter" style="animation-delay: ${i * 0.1}s">
+                <div class="flex items-center gap-3 mb-3">
+                    <span class="w-8 h-8 bg-purple-100 text-purple-600 rounded-lg flex items-center justify-center font-bold text-sm">${i + 1}</span>
+                    <span class="font-bold text-purple-700">${opt.section}</span>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div>
+                        <p class="text-xs text-gray-400 font-semibold mb-1">❌ 当前问题</p>
+                        <p class="text-sm text-gray-700 bg-red-50 rounded-lg p-3">${opt.current_issue}</p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-400 font-semibold mb-1">💡 优化建议</p>
+                        <p class="text-sm text-gray-700 bg-blue-50 rounded-lg p-3">${opt.suggestion}</p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-400 font-semibold mb-1">✨ 示例写法</p>
+                        <p class="text-sm text-gray-700 bg-green-50 rounded-lg p-3 italic">"${opt.example}"</p>
+                    </div>
+                </div>
+            </div>
+        `).join('')}
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+            <div class="card p-5">
+                <h4 class="font-bold mb-3">🏷️ 应添加的关键词</h4>
+                <div class="flex flex-wrap gap-2">
+                    ${(data.keyword_suggestions || []).map(k => `<span class="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium">${k}</span>`).join('')}
+                </div>
+            </div>
+            <div class="card p-5">
+                <h4 class="font-bold mb-3">📐 格式建议</h4>
+                <ul class="space-y-2">
+                    ${(data.format_tips || []).map(t => `<li class="text-sm text-gray-600 flex items-center gap-2"><span class="text-blue-500">•</span> ${t}</li>`).join('')}
+                </ul>
+            </div>
+        </div>
+
+        ${data.cover_letter_hint ? `
+        <div class="card p-5 mt-4 bg-gradient-to-r from-orange-50 to-pink-50">
+            <h4 class="font-bold mb-2">💌 求职信亮点建议</h4>
+            <p class="text-gray-700">${data.cover_letter_hint}</p>
+        </div>
+        ` : ''}
+    `;
+}
+
+// ===== Toast 通知 =====
+function showToast(msg, type) {
+    const toast = document.getElementById('toast');
+    const colors = { success: '#10b981', error: '#ef4444', warning: '#f59e0b', info: '#3b82f6' };
+    toast.style.background = colors[type] || colors.info;
+    toast.textContent = msg;
+    toast.classList.remove('hidden');
+    setTimeout(() => toast.classList.add('hidden'), 3000);
+}
+</script>
+
+</body>
+</html>

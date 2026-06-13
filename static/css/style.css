@@ -1,0 +1,8 @@
+/* Offer 捕手 — 额外CSS覆盖 */
+/* 主样式已在 template 中通过 Tailwind + 内联 style 实现 */
+
+/* 打印样式 */
+@media print {
+    .tab-btn, .btn-primary, header, footer { display: none !important; }
+    .card { box-shadow: none !important; border: 1px solid #ddd !important; }
+}
